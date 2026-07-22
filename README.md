@@ -6,17 +6,21 @@ Anyone who gets in can edit any cell, and edits save as soon as you leave a cell
 
 - `app.py` — the Streamlit app
 - `db.py` — data layer; plain SQLite locally, Turso when configured
+- `style.py` — the black/steel/hazard-tape look, and the theme switch
 - `build_db.py` — one-off script that turns the `.xlsx` into `cordedsteel.db`
 
 ## Run it locally
 
 ```bash
 pip install -r requirements.txt
-streamlit run app.py
+CORDED_STEEL_LOCAL=1 streamlit run app.py
 ```
 
-It opens `cordedsteel.db` in this folder. The password is **poop** — change it
-from the Settings expander once you're in.
+`CORDED_STEEL_LOCAL=1` forces the local `cordedsteel.db` file. **Use it once
+Turso is set up** — otherwise, because `secrets.toml` sits in this folder, every
+local test run edits the live database your friends are using.
+
+The password is **poop** — change it from the armory once you're in.
 
 To rebuild the database from the spreadsheet (this wipes any entries):
 
@@ -67,6 +71,32 @@ Only the cells you actually changed get written, one `INSERT … ON CONFLICT`
 statement each. Two people editing different cells both win, even if one of them
 is looking at a stale page. Two people editing the *same* cell in the same
 minute is last-write-wins — hit **Refresh** to pull in everyone else's changes.
+
+## The look, and the theme switch
+
+The app opens black. **Blackout / Daylight** in the top right switches themes for
+**you only**, in that browser — one person going light doesn't drag everyone
+else with them. Switching reloads the page, which means logging back in; that's
+the cost of the mechanism, and it's why the button is a rare-use control rather
+than something you'd flip constantly.
+
+Two constraints shaped how this is built, both learned the hard way:
+
+- **`.streamlit/config.toml` has no `[theme]` block, on purpose.** Streamlit
+  treats *any* theme entry — even fonts alone — as an authoritative "Custom
+  Theme" and then ignores the viewer's own choice, which silently breaks the
+  switch. So the base colours come from Streamlit's Dark preset, and everything
+  else lives in `style.py` as CSS that works on top of either preset.
+- **The editable grid is a `<canvas>`.** No stylesheet can reach inside it, so
+  its colours can only come from Streamlit's real theme. That's why the switch
+  stores a preset rather than injecting CSS — it's the only approach where the
+  grid follows along instead of staying white in a black page.
+
+The CSS in `style.py` targets Streamlit's internal `data-testid` attributes,
+which are undocumented and can change between versions. If an upgrade ever makes
+the app look plain, that's the cause — the app keeps working, it just loses its
+styling. One rule worth keeping: `[data-testid="stIconMaterial"]` must keep its
+own font, or Streamlit's icons render as the literal text `keyboard_arrow_right`.
 
 ## Security
 
