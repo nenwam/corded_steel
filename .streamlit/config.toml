@@ -1,0 +1,9 @@
+# Streamlit's stock accent is a red, which reads as "something is wrong" on a
+# progress bar. This is slot 1 of the chart palette, so the bars, the radio
+# buttons and the chart's first series all agree; it clears 3:1 contrast on both
+# the light and the dark app background.
+[theme]
+primaryColor = "#2a78d6"
+
+[browser]
+gatherUsageStats = false

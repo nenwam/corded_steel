@@ -1,0 +1,14 @@
+# Never commit real credentials — only the example file belongs in git.
+.streamlit/secrets.toml
+
+# The seeded database is a build artifact; Turso holds the live copy.
+cordedsteel.db
+cordedsteel.db-journal
+cordedsteel.db-wal
+cordedsteel.db-shm
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
