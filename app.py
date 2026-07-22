@@ -6,9 +6,9 @@ cumulative progress chart.
 
 Rendering safety: every value shown on the page goes through a native Streamlit
 element (`st.metric`, `st.dataframe`, `st.data_editor`, Altair), all of which
-escape their content. The single `unsafe_allow_html` block below is a static
-stylesheet with no interpolation, so there is no path for stored markup to
-execute — and names are allowlisted on the way in besides.
+escape their content. The raw HTML in `style.py` is a static stylesheet plus
+literal chrome, so there is no path for stored markup to execute — and names
+are allowlisted on the way in besides.
 """
 
 from __future__ import annotations
@@ -21,36 +21,33 @@ import pandas as pd
 import streamlit as st
 
 import db
+import style
 
 MAX_ATTEMPTS = 8
 LOCKOUT_SECONDS = 60
 
 # A colourblind-safe categorical ramp, stepped separately for each mode. The
 # order is the safety mechanism — assign slots in sequence, never shuffle them.
+# Orange leads because it is the most aggressive hue that still clears every
+# separation check against this app's near-black background.
 SERIES_LIGHT = [
-    "#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+    "#eb6834", "#2a78d6", "#1baf7a", "#eda100",
     "#e87ba4", "#008300", "#4a3aa7", "#e34948",
 ]
 SERIES_DARK = [
-    "#3987e5", "#d95926", "#199e70", "#c98500",
+    "#d95926", "#3987e5", "#199e70", "#c98500",
     "#d55181", "#008300", "#9085e9", "#e66767",
 ]
 MUTED = "#898781"
+# Chart text wears ink, never a series colour — the words already say who it is.
+INK_DARK, INK_LIGHT = "#ededed", "#0b0b0b"
 CHART_HEIGHT = 320
 
 
-st.set_page_config(page_title="Corded Steel", page_icon="🏋️", layout="wide")
+st.set_page_config(page_title="CORDED STEEL", page_icon="💀", layout="wide")
 
-st.markdown(
-    """
-    <style>
-      [data-testid="stMetricValue"] { font-size: 1.6rem; }
-      [data-testid="stMetricLabel"] { opacity: 0.75; }
-      .block-container { padding-top: 2.5rem; }
-    </style>
-    """,
-    unsafe_allow_html=True,  # static CSS only — no data is interpolated here
-)
+theme_mode = style.current_mode()
+style.inject()
 
 
 # --------------------------------------------------------------------------- #
@@ -83,17 +80,21 @@ def locked_out() -> float:
 
 
 def login_screen() -> None:
+    style.ensure_default_dark()
+    style.kicker("Members only")
     st.title("Corded Steel")
-    st.caption("Enter the password to open the board.")
+    style.tape()
+    style.creed("Push-ups · Pull-ups · Miles. Nothing else counts.")
+    st.caption("Say the word and the gates open.")
 
     remaining = locked_out()
     if remaining:
-        st.error(f"Too many attempts. Try again in {int(remaining) + 1}s.")
+        st.error(f"Locked out. Cool off for {int(remaining) + 1}s.")
         st.stop()
 
     with st.form("login", clear_on_submit=True):
         password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Enter", type="primary")
+        submitted = st.form_submit_button("Let me in", type="primary")
 
     if submitted:
         if db.verify_password(conn, password):
@@ -106,7 +107,7 @@ def login_screen() -> None:
                 st.session_state.locked_until = time.time() + LOCKOUT_SECONDS
                 st.session_state.attempts = 0
                 st.rerun()
-            st.error("Wrong password.")
+            st.error("Wrong. Try again.")
 
     st.stop()
 
@@ -192,16 +193,8 @@ def totals_for(participant_id, exercise_id) -> float:
     )
 
 
-def series_palette():
-    """Pick the palette stepped for whichever mode the viewer is in."""
-    try:
-        mode = st.context.theme.type or "light"
-    except Exception:
-        mode = "light"
-    return SERIES_DARK if mode == "dark" else SERIES_LIGHT
-
-
-palette = series_palette()
+palette = SERIES_DARK if theme_mode == "dark" else SERIES_LIGHT
+ink = INK_DARK if theme_mode == "dark" else INK_LIGHT
 # Slots are handed out in a fixed order and stay with the person, so everyone
 # keeps the same colour in the scoreboard and the progress chart.
 names = [participant["name"] for participant in participants][: len(palette)]
@@ -218,17 +211,29 @@ series_color = alt.Color(
 
 header, controls = st.columns([3, 1])
 with header:
+    style.kicker(f"{len(days)} days")
     st.title(title)
     st.caption(
         f"{format_day(start_day)} – {format_day(end_day, '%b %d, %Y')} · {when}"
     )
 with controls:
     st.write("")
-    if st.button("Refresh", width="stretch", help="Pull everyone else's latest edits"):
+    if st.button("Refresh", width="stretch", help="Pull in everyone else's latest"):
         st.rerun()
+
+    going_light = theme_mode == "dark"
+    if st.button(
+        "Daylight" if going_light else "Blackout",
+        width="stretch",
+        help="Switches the theme for you only, on this browser",
+    ):
+        style.apply_theme("light" if going_light else "dark")
+
     if st.button("Log out", width="stretch"):
         st.session_state.clear()
         st.rerun()
+
+style.tape()
 
 # A single compact chart rather than three, so the editable table stays near the
 # top of the page. Plotting % of goal puts push-ups, pull-ups and miles on one
@@ -276,9 +281,9 @@ bars = standings_base.mark_bar(cornerRadiusEnd=3).encode(
 
 # The raw number at the end of each bar: the percentage axis makes the three
 # exercises comparable, but push-ups are still counted in push-ups.
-bar_labels = standings_base.mark_text(align="left", dx=6, fontSize=11).encode(
-    text="Total:N"
-)
+bar_labels = standings_base.mark_text(
+    align="left", dx=6, fontSize=11, color=ink
+).encode(text="Total:N")
 
 goal_rule = (
     alt.Chart(pd.DataFrame({"Percent": [100.0]}))
@@ -296,7 +301,7 @@ st.altair_chart(
     .configure_view(strokeWidth=0)
 )
 st.caption(
-    "Dashed line is 100% of goal · "
+    "Dashed line is the goal · "
     + " · ".join(
         f"{exercise['name']} "
         f"{max(goals.get((p['id'], exercise['id']), 0.0) for p in participants):,.{exercise['decimals']}f}"
@@ -311,7 +316,7 @@ st.divider()
 # The editable grid
 # --------------------------------------------------------------------------- #
 
-st.subheader("The table")
+st.subheader("The log")
 
 view_options = ["Everyone"] + [p["name"] for p in participants]
 drop_stale("view", view_options)
@@ -399,7 +404,7 @@ st.data_editor(
     height=min(38 * len(days) + 40, 620),
 )
 st.caption(
-    "Edits save the moment you leave a cell. Hit **Refresh** to pull in "
+    "Edits save the moment you leave a cell. Hit refresh to pull in "
     "everyone else's changes."
 )
 
@@ -430,7 +435,7 @@ st.dataframe(
 # --------------------------------------------------------------------------- #
 
 st.divider()
-st.subheader("Progress")
+st.subheader("The climb")
 
 exercise_names = [item["name"] for item in exercises]
 drop_stale("focus_exercise", exercise_names)
@@ -522,8 +527,8 @@ finals["LabelY"] = label_y
 
 labels = (
     alt.Chart(finals)
-    .mark_text(align="left", dx=8, fontSize=12, fontWeight=500)
-    .encode(x="Date:T", y=alt.Y("LabelY:Q", title=None), text="Who:N", color=series_color)
+    .mark_text(align="left", dx=8, fontSize=12, fontWeight=600, color=ink)
+    .encode(x="Date:T", y=alt.Y("LabelY:Q", title=None), text="Who:N")
 )
 
 st.altair_chart(
@@ -531,7 +536,7 @@ st.altair_chart(
     .properties(width="container", height=CHART_HEIGHT, padding={"right": 72})
     .configure_view(strokeWidth=0)
 )
-st.caption("Dashed line is the pace needed to hit the goal by the last day.")
+st.caption("Dashed line is the pace needed to finish on time.")
 
 # What each person still has to do per day — the number the pace line implies.
 decimals = exercise["decimals"]
@@ -541,7 +546,7 @@ for column, participant in zip(st.columns(len(participants)), participants):
     remaining = max(goal - total, 0.0)
     with column:
         if remaining <= 0:
-            st.metric(participant["name"], "Goal met 🎉", border=True)
+            st.metric(participant["name"], "Done 💀", border=True)
         else:
             per_day = remaining / days_left if days_left else remaining
             st.metric(
@@ -557,7 +562,7 @@ for column, participant in zip(st.columns(len(participants)), participants):
 # Settings
 # --------------------------------------------------------------------------- #
 
-with st.expander("Settings"):
+with st.expander("The armory"):
     st.caption(f"Connected to {db.backend_name()}.")
 
     st.markdown("**Goals**")

@@ -1,9 +1,10 @@
-# Streamlit's stock accent is a red, which reads as "something is wrong" on a
-# progress bar. This is slot 1 of the chart palette, so the bars, the radio
-# buttons and the chart's first series all agree; it clears 3:1 contrast on both
-# the light and the dark app background.
-[theme]
-primaryColor = "#2a78d6"
-
+# Deliberately NO [theme] block.
+#
+# Streamlit treats any [theme] entry — even a fonts-only one — as an
+# authoritative "Custom Theme" and then ignores the viewer's own theme choice.
+# That would break the Blackout/Daylight button, which works by storing one of
+# Streamlit's presets. So the colour scheme comes from the Dark preset, and
+# everything else (fonts, case, hazard stripes, the red accent, square corners)
+# is CSS in style.py, which applies in both modes.
 [browser]
 gatherUsageStats = false

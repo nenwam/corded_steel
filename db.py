@@ -92,6 +92,11 @@ def _turso_credentials():
     Reading `st.secrets` raises when no secrets file exists, which is the normal
     case for local development, so treat any failure as "not configured".
     """
+    # Escape hatch for local work once Turso is configured: without it, having
+    # secrets.toml on disk means every local test run edits production.
+    if os.environ.get("CORDED_STEEL_LOCAL"):
+        return None
+
     url = os.environ.get("TURSO_DATABASE_URL")
     token = os.environ.get("TURSO_AUTH_TOKEN")
 
