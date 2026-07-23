@@ -14,7 +14,8 @@ are allowlisted on the way in besides.
 from __future__ import annotations
 
 import time
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import altair as alt
 import pandas as pd
@@ -25,6 +26,11 @@ import style
 
 MAX_ATTEMPTS = 8
 LOCKOUT_SECONDS = 60
+
+# The program's day-rollover follows this zone, not the host's. Streamlit
+# Community Cloud runs its containers in UTC, so pin "today" explicitly here
+# rather than relying on the server clock.
+APP_TZ = ZoneInfo("America/Los_Angeles")
 
 # A colourblind-safe categorical ramp, stepped separately for each mode. The
 # order is the safety mechanism — assign slots in sequence, never shuffle them.
@@ -168,7 +174,7 @@ if not participants or not exercises:
 
 start_day, end_day = days[0], days[-1]
 
-today = date.today()
+today = datetime.now(APP_TZ).date()
 days_elapsed = min(max((today - start_day).days + 1, 0), len(days))
 days_left = max(len(days) - days_elapsed, 0)
 
