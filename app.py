@@ -239,6 +239,19 @@ with controls:
         st.session_state.clear()
         st.rerun()
 
+# A prod for anyone freshly added to the roster who has not yet logged a rep:
+# it clears itself the moment Myles enters a single non-zero number anywhere.
+myles = next((p for p in participants if p["name"] == "Myles"), None)
+if myles is not None and not any(
+    value != 0
+    for (pid, _eid, _day), value in entries.items()
+    if pid == myles["id"]
+):
+    st.error(
+        "**Status of Myles: Rot**  \n"
+        "This message will disappear once Myles stops rotting away."
+    )
+
 style.tape()
 
 # A single compact chart rather than three, so the editable table stays near the
