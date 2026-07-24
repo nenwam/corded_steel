@@ -426,12 +426,12 @@ for label, (participant_id, exercise_id, exercise) in column_map.items():
     decimals = max(exercise["decimals"], 1)
     footer[label] = [
         f"{total:,.{exercise['decimals']}f}",
-        f"{(total / goal * 100) if goal else 0:.1f}%",
         f"{(total / len(days)) if days else 0:,.{decimals}f}",
+        f"{(total / goal * 100) if goal else 0:.1f}%",
     ]
 
 st.dataframe(
-    pd.DataFrame(footer, index=["Total", "% of Goal", "Avg. / day"]),
+    pd.DataFrame(footer, index=["Total", "Avg. / day", "% of Goal"]),
     column_config={label: st.column_config.TextColumn(label) for label in footer},
 )
 
@@ -512,33 +512,10 @@ if len(exercise_goals) == 1 and exercise_goals != {0.0}:
         .encode(x="Date:T", y="Total:Q"),
     )
 
-# Direct end-of-line labels, so identity never rests on colour alone. Lines that
-# finish close together would print their names on top of each other, so nudge
-# the labels apart into a legible stack first.
-finals = (
-    progress[progress["Date"] == plot_days[-1]]
-    .sort_values("Total")
-    .reset_index(drop=True)
-)
-span = max(float(progress["Total"].max()), float(target or 0)) or 1.0
-# One line-height of separation, no more: the nudge is there to stop names
-# printing on top of each other, not to restate the value.
-gap = span * (15 / CHART_HEIGHT)
-label_y, previous = [], None
-for value in finals["Total"]:
-    position = float(value) if previous is None else max(float(value), previous + gap)
-    label_y.append(position)
-    previous = position
-finals["LabelY"] = label_y
-
-labels = (
-    alt.Chart(finals)
-    .mark_text(align="left", dx=8, fontSize=12, fontWeight=600, color=ink)
-    .encode(x="Date:T", y=alt.Y("LabelY:Q", title=None), text="Who:N")
-)
-
+# Identity comes from the colour key at the top; names are not printed on the
+# lines themselves, since the wide date axis would crowd them at the left edge.
 st.altair_chart(
-    alt.layer(*layers, labels)
+    alt.layer(*layers)
     .properties(width="container", height=CHART_HEIGHT, padding={"right": 72})
     .configure_view(strokeWidth=0)
 )
