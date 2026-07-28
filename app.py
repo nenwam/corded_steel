@@ -249,7 +249,7 @@ if myles is not None and not any(
 ):
     st.error(
         "**Status of Myles: Rot**  \n"
-        "This message will disappear once Myles stops rotting away."
+        "This message will disappear once Myles enters data."
     )
 
 style.tape()
