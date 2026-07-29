@@ -555,6 +555,39 @@ for column, participant in zip(st.columns(len(participants)), participants):
 
 
 # --------------------------------------------------------------------------- #
+# The debt — how far below a flat daily pace each person sits, per exercise
+# --------------------------------------------------------------------------- #
+
+st.divider()
+st.subheader("The debt")
+st.caption(
+    f"How far each person trails a flat daily pace as of day {days_elapsed} "
+    f"of {len(days)}. The pace is each goal spread evenly across the "
+    "challenge — the same dashed line as the climb. Zero means on or ahead."
+)
+
+# Expected-by-now is daily_rate * days_elapsed, which is exactly the pace line's
+# height at today, so the debt is literally the gap below that dashed line.
+debt = {}
+for exercise_item in exercises:
+    column = []
+    for participant in participants:
+        goal = goals.get((participant["id"], exercise_item["id"]), 0.0)
+        expected = (goal / len(days) * days_elapsed) if days else 0.0
+        actual = totals_for(participant["id"], exercise_item["id"])
+        column.append(f"{max(expected - actual, 0.0):,.{exercise_item['decimals']}f}")
+    debt[exercise_item["name"]] = column
+
+st.dataframe(
+    pd.DataFrame(debt, index=[p["name"] for p in participants]),
+    column_config={
+        exercise_item["name"]: st.column_config.TextColumn(exercise_item["name"])
+        for exercise_item in exercises
+    },
+)
+
+
+# --------------------------------------------------------------------------- #
 # Settings
 # --------------------------------------------------------------------------- #
 
