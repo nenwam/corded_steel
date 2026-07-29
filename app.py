@@ -559,7 +559,7 @@ for column, participant in zip(st.columns(len(participants)), participants):
 # --------------------------------------------------------------------------- #
 
 st.divider()
-st.subheader("The debt")
+st.subheader("debt")
 st.caption(
     f"How far each person trails a flat daily pace as of day {days_elapsed} "
     f"of {len(days)}. The pace is each goal spread evenly across the "
