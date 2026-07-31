@@ -85,6 +85,21 @@ def locked_out() -> float:
     return max(0.0, until - time.time())
 
 
+def authenticate(password: str) -> bool:
+    """Check the password, reconnecting once if the cached Turso socket died.
+
+    `load_board` already self-heals a dropped HTTP connection, but the login
+    gate runs before it — so without the same retry here a stale connection
+    raises at the door and nobody can reach the board that would have healed it.
+    """
+    global conn
+    try:
+        return db.verify_password(conn, password)
+    except Exception:
+        conn = reconnect()
+        return db.verify_password(conn, password)
+
+
 def login_screen() -> None:
     style.ensure_default_dark()
     style.kicker("Members only")
@@ -103,7 +118,7 @@ def login_screen() -> None:
         submitted = st.form_submit_button("Let me in", type="primary")
 
     if submitted:
-        if db.verify_password(conn, password):
+        if authenticate(password):
             st.session_state.authenticated = True
             st.session_state.attempts = 0
             st.rerun()
